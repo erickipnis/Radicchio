@@ -1,0 +1,41 @@
+{
+  "name": "Radicchio",
+  "version": "0.1.0",
+  "description": "A distributed timer implemented with Redis and Lua",
+  "main": "index.js",
+  "scripts": {
+    "pretest": "grunt lint",
+    "test": "grunt test",
+    "watch": "grunt watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erickipnis/Radicchio.git"
+  },
+  "author": "Eric Kipnis",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/erickipnis/Radicchio/issues"
+  },
+  "homepage": "https://github.com/erickipnis/Radicchio#readme",
+  "dependencies": {
+    "babel-core": "^6.3.21",
+    "bluebird": "^3.1.1",
+    "ioredis": "^1.13.0",
+    "lodash": "^3.10.1"
+  },
+  "devDependencies": {
+    "babel-eslint": "^4.1.6",
+    "babel-preset-es2015": "^6.3.13",
+    "chai": "^3.4.1",
+    "chai-as-promised": "^5.1.0",
+    "eslint": "^1.10.3",
+    "eslint-config-airbnb": "^2.1.1",
+    "grunt": "^0.4.5",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-eslint": "^17.3.1",
+    "grunt-mocha-test": "^0.12.7",
+    "load-grunt-tasks": "^3.4.0",
+    "mocha": "^2.3.4"
+  }
+}
