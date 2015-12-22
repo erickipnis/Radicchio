@@ -4,6 +4,7 @@
   "description": "A distributed timer implemented with Redis and Lua",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "pretest": "grunt lint",
     "test": "grunt test",
     "watch": "grunt watch"
@@ -21,6 +22,7 @@
   "dependencies": {
     "babel-core": "^6.3.21",
     "bluebird": "^3.1.1",
+    "event-emitter": "^0.3.4",
     "ioredis": "^1.13.0",
     "lodash": "^3.10.1"
   },

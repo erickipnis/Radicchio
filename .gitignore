@@ -1,5 +1,6 @@
 # Node.js files
 node_modules
+*.log
 
 # Compiled Lua sources
 luac.out
