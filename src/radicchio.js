@@ -11,17 +11,21 @@ function loadLuaFile(filePath) {
 }
 
 radicchio.init = function () {
-  const startFile = loadLuaFile(__dirname + '/lua/start.lua');
-  const disableFile = loadLuaFile(__dirname + '/lua/disable.lua');
+  return new Promise(function (resolve) {
+    const startFile = loadLuaFile(__dirname + '/lua/start.lua');
+    const disableFile = loadLuaFile(__dirname + '/lua/disable.lua');
 
-  redis.defineCommand('startTimer', {
-    numberOfKeys: 1,
-    lua: startFile,
-  });
+    redis.defineCommand('startTimer', {
+      numberOfKeys: 1,
+      lua: startFile,
+    });
 
-  redis.defineCommand('disableTimer', {
-    numberOfKeys: 1,
-    lua: disableFile,
+    redis.defineCommand('disableTimer', {
+      numberOfKeys: 1,
+      lua: disableFile,
+    });
+
+    resolve(true);
   });
 };
 
@@ -44,12 +48,20 @@ radicchio.startTimer = function (id, timeInMS) {
 };
 
 radicchio.disableTimer = function (id) {
-  redis.disableTimer(id, '', function (err, result) {
-    if (err) {
-      throw new Error('Could not disable timer: ' + err);
+  return new Promise(function (resolve, reject) {
+    try {
+      redis.disableTimer(id, '', function (err, result) {
+        if (err) {
+          reject(err);
+        }
+        else {
+          resolve(result);
+        }
+      });
     }
-
-    console.log(result);
+    catch (e) {
+      reject(e);
+    }
   });
 };
 

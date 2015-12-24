@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "pretest": "grunt lint",
-    "test": "grunt test",
+    "test": "grunt unit-test",
+    "unit-test": "grunt unit-test",
+    "lint": "grunt lint",
     "watch": "grunt watch"
   },
   "repository": {

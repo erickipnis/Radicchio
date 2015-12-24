@@ -36,4 +36,4 @@ module.exports = function(grunt) {
   grunt.registerTask('lint', 'eslint');
   grunt.registerTask('unit-test', 'mochaTest');
   grunt.registerTask('test', ['lint', 'unit-test']);
-}
+};
