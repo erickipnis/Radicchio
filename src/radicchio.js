@@ -15,16 +15,22 @@ radicchio.init = function () {
   return new Promise(function (resolve) {
     const startFile = loadLuaFile(__dirname + '/lua/start.lua');
     const disableFile = loadLuaFile(__dirname + '/lua/disable.lua');
+    const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
     const getTimeLeftFile = loadLuaFile(__dirname + '/lua/getTimeLeft.lua');
 
     redis.defineCommand('startTimer', {
-      numberOfKeys: 1,
+      numberOfKeys: 2,
       lua: startFile,
     });
 
     redis.defineCommand('disableTimer', {
-      numberOfKeys: 1,
+      numberOfKeys: 2,
       lua: disableFile,
+    });
+
+    redis.defineCommand('getSetKeys', {
+      numberOfKeys: 1,
+      lua: getSetKeysFile,
     });
 
     redis.defineCommand('getTimeLeft', {
@@ -36,10 +42,10 @@ radicchio.init = function () {
   });
 };
 
-radicchio.startTimer = function (id, timeInMS) {
+radicchio.startTimer = function (setId, fieldId, timeInMS) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.startTimer(id, timeInMS, function (err, result) {
+      redis.startTimer(setId, fieldId, timeInMS, '', function (err, result) {
         if (err) {
           reject(err);
         }
@@ -54,10 +60,10 @@ radicchio.startTimer = function (id, timeInMS) {
   });
 };
 
-radicchio.disableTimer = function (id) {
+radicchio.disableTimer = function (setId, fieldId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.disableTimer(id, '', function (err, result) {
+      redis.disableTimer(setId, fieldId, '', '', function (err, result) {
         if (err) {
           reject(err);
         }
@@ -72,10 +78,10 @@ radicchio.disableTimer = function (id) {
   });
 };
 
-radicchio.getTimeLeft = function (id) {
+radicchio.getTimeLeft = function (key) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.getTimeLeft(id, '', function (err, result) {
+      redis.getTimeLeft(key, '', function (err, result) {
         if (err) {
           reject(err);
         }
@@ -83,7 +89,7 @@ radicchio.getTimeLeft = function (id) {
           resolve(result);
         }
         else if (result < 0) {
-          reject('The timer with key ' + id + 'has expired or does not exist');
+          reject('The timer with key ' + key + 'has expired or does not exist');
         }
       });
     }
@@ -93,18 +99,20 @@ radicchio.getTimeLeft = function (id) {
   });
 };
 
-radicchio.getTimeLeftOnAllKeys = function (ids) {
+radicchio.getTimeLeftOnSetKeys = function (setId) {
   const promises = [];
 
   return new Promise(function (resolve, reject) {
     try {
-      _.map(ids, function (id) {
-        promises.push(radicchio.getTimeLeft(id));
-      });
+      redis.getSetKeys(setId, '', function (err, result) {
+        _.map(result, function (id) {
+          promises.push(radicchio.getTimeLeft(id));
+        });
 
-      Promise.all(promises)
-      .then(function (results) {
-        resolve(results);
+        Promise.all(promises)
+        .then(function (results) {
+          resolve(results);
+        });
       });
     }
     catch (e) {
