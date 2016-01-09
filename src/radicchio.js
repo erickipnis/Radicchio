@@ -5,6 +5,7 @@ import Promise from 'bluebird';
 import _ from 'lodash';
 
 const redis = new Redis();
+const sub = new Redis();
 const radicchio = {};
 
 function loadLuaFile(filePath) {
@@ -12,11 +13,15 @@ function loadLuaFile(filePath) {
 }
 
 radicchio.init = function () {
+  const EVENT_DEL = '__keyevent@0__:del';
+
   return new Promise(function (resolve) {
     const startFile = loadLuaFile(__dirname + '/lua/start.lua');
     const disableFile = loadLuaFile(__dirname + '/lua/disable.lua');
     const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
     const getTimeLeftFile = loadLuaFile(__dirname + '/lua/getTimeLeft.lua');
+
+    redis.config('SET', 'notify-keyspace-events', 'KEA');
 
     redis.defineCommand('startTimer', {
       numberOfKeys: 2,
@@ -37,6 +42,13 @@ radicchio.init = function () {
       numberOfKeys: 1,
       lua: getTimeLeftFile,
     });
+
+    sub.on('message', function (channel, message) {
+      // Replace with actual emit to event-emitter
+      console.log('channel: ' + channel + ', message: ' + message);
+    });
+
+    sub.subscribe(EVENT_DEL);
 
     resolve(true);
   });
