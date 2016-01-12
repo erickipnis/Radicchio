@@ -7,9 +7,17 @@ import _ from 'lodash';
 const redis = new Redis();
 const sub = new Redis();
 const radicchio = {};
+const setIds = [];
 
 function loadLuaFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function update() {
+  _.map(setIds, function (setId) {
+    radicchio.getTimeLeftOnSetKeys(setId);
+  });
+  console.log(setIds);
 }
 
 radicchio.init = function () {
@@ -50,6 +58,8 @@ radicchio.init = function () {
 
     sub.subscribe(EVENT_DEL);
 
+    setInterval(update, 1);
+
     resolve(true);
   });
 };
@@ -62,6 +72,9 @@ radicchio.startTimer = function (setId, fieldId, timeInMS) {
           reject(err);
         }
         else if (result.toLowerCase() === 'ok') {
+          if (setIds.indexOf(setId) === -1) {
+            setIds.push(setId);
+          }
           resolve(true);
         }
       });
@@ -73,6 +86,8 @@ radicchio.startTimer = function (setId, fieldId, timeInMS) {
 };
 
 radicchio.disableTimer = function (setId, fieldId) {
+  const index = setIds.indexOf(setId);
+
   return new Promise(function (resolve, reject) {
     try {
       redis.disableTimer(setId, fieldId, '', '', function (err, result) {
@@ -80,6 +95,12 @@ radicchio.disableTimer = function (setId, fieldId) {
           reject(err);
         }
         else {
+          radicchio.getTimeLeftOnSetKeys(setId)
+          .then((timesLeft) => {
+            if (timesLeft.length === 0 && index > -1) {
+              setIds.splice(index, 1);
+            }
+          });
           resolve(result);
         }
       });
@@ -97,11 +118,11 @@ radicchio.getTimeLeft = function (key) {
         if (err) {
           reject(err);
         }
-        else if (result >= 0) {
+        else if (result > 0) {
           resolve(result);
         }
-        else if (result < 0) {
-          reject('The timer with key ' + key + 'has expired or does not exist');
+        else if (result <= 0) {
+          resolve(0);
         }
       });
     }
@@ -123,7 +144,18 @@ radicchio.getTimeLeftOnSetKeys = function (setId) {
 
         Promise.all(promises)
         .then(function (results) {
-          resolve(results);
+          const filtered = _.filter(results, function (timeLeft) {
+            return timeLeft > 0;
+          });
+          console.log(filtered);
+          if (filtered.length === 0) {
+            const index = setIds.indexOf(setId);
+
+            if (index > -1) {
+              setIds.splice(index, 1);
+            }
+          }
+          resolve(filtered);
         });
       });
     }
