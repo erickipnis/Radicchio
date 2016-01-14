@@ -26,7 +26,8 @@
     "bluebird": "^3.1.1",
     "event-emitter": "^0.3.4",
     "ioredis": "^1.13.0",
-    "lodash": "^3.10.1"
+    "lodash": "^3.10.1",
+    "shortid": "^2.2.4"
   },
   "devDependencies": {
     "babel-eslint": "^4.1.6",

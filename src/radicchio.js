@@ -2,22 +2,23 @@ require('babel-core/register');
 import Redis from 'ioredis';
 import fs from 'fs';
 import Promise from 'bluebird';
+import ShortId from 'shortid';
 import _ from 'lodash';
 
 const redis = new Redis();
 const sub = new Redis();
 const radicchio = {};
-const setIds = [];
+radicchio.setId = null;
+
+// TODO: EDIT UNIT TESTS
+// TODO: IMPLEMENT SUSPEND AND RESUME TIMER FUNCTIONS
 
 function loadLuaFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
 function update() {
-  _.map(setIds, function (setId) {
-    radicchio.getTimeLeftOnSetKeys(setId);
-  });
-  console.log(setIds);
+  radicchio.getAllTimesLeft();
 }
 
 radicchio.init = function () {
@@ -25,9 +26,11 @@ radicchio.init = function () {
 
   return new Promise(function (resolve) {
     const startFile = loadLuaFile(__dirname + '/lua/start.lua');
-    const disableFile = loadLuaFile(__dirname + '/lua/disable.lua');
+    const deleteFile = loadLuaFile(__dirname + '/lua/delete.lua');
     const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
     const getTimeLeftFile = loadLuaFile(__dirname + '/lua/getTimeLeft.lua');
+
+    radicchio.setId = ShortId.generate();
 
     redis.config('SET', 'notify-keyspace-events', 'KEA');
 
@@ -36,9 +39,9 @@ radicchio.init = function () {
       lua: startFile,
     });
 
-    redis.defineCommand('disableTimer', {
+    redis.defineCommand('deleteTimer', {
       numberOfKeys: 2,
-      lua: disableFile,
+      lua: deleteFile,
     });
 
     redis.defineCommand('getSetKeys', {
@@ -64,18 +67,21 @@ radicchio.init = function () {
   });
 };
 
-radicchio.startTimer = function (setId, fieldId, timeInMS) {
+radicchio.startTimer = function (timeInMS) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.startTimer(setId, fieldId, timeInMS, '', function (err, result) {
+      if (radicchio.setId === null) {
+        radicchio.setId = ShortId.generate();
+      }
+
+      const timerId = ShortId.generate();
+
+      redis.startTimer(radicchio.setId, timerId, timeInMS, '', function (err, result) {
         if (err) {
           reject(err);
         }
         else if (result.toLowerCase() === 'ok') {
-          if (setIds.indexOf(setId) === -1) {
-            setIds.push(setId);
-          }
-          resolve(true);
+          resolve(timerId);
         }
       });
     }
@@ -85,23 +91,17 @@ radicchio.startTimer = function (setId, fieldId, timeInMS) {
   });
 };
 
-radicchio.disableTimer = function (setId, fieldId) {
-  const index = setIds.indexOf(setId);
-
+radicchio.deleteTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.disableTimer(setId, fieldId, '', '', function (err, result) {
+      redis.deleteTimer(radicchio.setId, timerId, '', '', function (err, result) {
         if (err) {
           reject(err);
         }
         else {
-          radicchio.getTimeLeftOnSetKeys(setId)
-          .then((timesLeft) => {
-            if (timesLeft.length === 0 && index > -1) {
-              setIds.splice(index, 1);
-            }
-          });
-          resolve(result);
+          if (result === 1) {
+            resolve(true);
+          }
         }
       });
     }
@@ -111,18 +111,18 @@ radicchio.disableTimer = function (setId, fieldId) {
   });
 };
 
-radicchio.getTimeLeft = function (key) {
+radicchio.getTimeLeft = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.getTimeLeft(key, '', function (err, result) {
+      redis.getTimeLeft(timerId, '', function (err, result) {
         if (err) {
           reject(err);
         }
-        else if (result > 0) {
+        else if (result >= 0) {
           resolve(result);
         }
-        else if (result <= 0) {
-          resolve(0);
+        else if (result < 0) {
+          resolve(null);
         }
       });
     }
@@ -132,28 +132,25 @@ radicchio.getTimeLeft = function (key) {
   });
 };
 
-radicchio.getTimeLeftOnSetKeys = function (setId) {
+radicchio.getAllTimesLeft = function () {
   const promises = [];
 
   return new Promise(function (resolve, reject) {
     try {
-      redis.getSetKeys(setId, '', function (err, result) {
-        _.map(result, function (id) {
-          promises.push(radicchio.getTimeLeft(id));
+      redis.getSetKeys(radicchio.setId, '', function (err, result) {
+        _.map(result, function (timerId) {
+          promises.push(radicchio.getTimeLeft(timerId));
         });
 
         Promise.all(promises)
-        .then(function (results) {
-          const filtered = _.filter(results, function (timeLeft) {
-            return timeLeft > 0;
+        .then(function (timesLeft) {
+          const filtered = _.filter(timesLeft, function (timeLeft) {
+            return timeLeft > 0 || timeLeft === null;
           });
+
           console.log(filtered);
           if (filtered.length === 0) {
-            const index = setIds.indexOf(setId);
-
-            if (index > -1) {
-              setIds.splice(index, 1);
-            }
+            radicchio.setId = null;
           }
           resolve(filtered);
         });
