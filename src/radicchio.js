@@ -3,11 +3,14 @@ import Redis from 'ioredis';
 import fs from 'fs';
 import Promise from 'bluebird';
 import ShortId from 'shortid';
+import eventEmitter from 'event-emitter';
 import _ from 'lodash';
 
 const redis = new Redis();
 const sub = new Redis();
+const emitter = eventEmitter({});
 const radicchio = {};
+const setSuffix = '-set';
 radicchio.setId = null;
 
 // TODO: EDIT UNIT TESTS
@@ -21,8 +24,13 @@ function update() {
   radicchio.getAllTimesLeft();
 }
 
+radicchio.on = function (event, callback) {
+  emitter.on(event, callback);
+};
+
 radicchio.init = function () {
   const EVENT_DEL = '__keyevent@0__:del';
+  const EVENT_EXPIRED = '__keyevent@0__:expired';
 
   return new Promise(function (resolve) {
     const startFile = loadLuaFile(__dirname + '/lua/start.lua');
@@ -30,8 +38,7 @@ radicchio.init = function () {
     const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
     const getTimeLeftFile = loadLuaFile(__dirname + '/lua/getTimeLeft.lua');
 
-    radicchio.setId = ShortId.generate();
-
+    radicchio.setId = ShortId.generate() + setSuffix;
     redis.config('SET', 'notify-keyspace-events', 'KEA');
 
     redis.defineCommand('startTimer', {
@@ -56,10 +63,15 @@ radicchio.init = function () {
 
     sub.on('message', function (channel, message) {
       // Replace with actual emit to event-emitter
-      console.log('channel: ' + channel + ', message: ' + message);
+      if (channel === EVENT_DEL && !message.includes(setSuffix)) {
+        emitter.emit('del', message);
+      }
+      else if (channel === EVENT_EXPIRED && !message.includes(setSuffix)) {
+        emitter.emit('expired', message);
+      }
     });
 
-    sub.subscribe(EVENT_DEL);
+    sub.subscribe(EVENT_DEL, EVENT_EXPIRED);
 
     setInterval(update, 1);
 
@@ -71,7 +83,7 @@ radicchio.startTimer = function (timeInMS) {
   return new Promise(function (resolve, reject) {
     try {
       if (radicchio.setId === null) {
-        radicchio.setId = ShortId.generate();
+        radicchio.setId = ShortId.generate() + setSuffix;
       }
 
       const timerId = ShortId.generate();
@@ -145,10 +157,9 @@ radicchio.getAllTimesLeft = function () {
         Promise.all(promises)
         .then(function (timesLeft) {
           const filtered = _.filter(timesLeft, function (timeLeft) {
-            return timeLeft > 0 || timeLeft === null;
+            return timeLeft > 0 || timeLeft !== null;
           });
 
-          console.log(filtered);
           if (filtered.length === 0) {
             radicchio.setId = null;
           }
