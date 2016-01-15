@@ -40,6 +40,35 @@ describe('Radicchio_Tests', () => {
     });
   });
 
+  describe('#suspendTimer', () => {
+    it('Should delete the timer from Redis and storing ttl in the global set', (done) => {
+      radicchio.startTimer('10000')
+      .then((timerId) => {
+        radicchio.suspendTimer(timerId)
+        .then((result) => {
+          expect(result).to.equal(timerId);
+          done();
+        });
+      });
+    });
+  });
+
+  describe('#resumeTimer', () => {
+    it('Should set an expire on the timerId stored in global set with remaining ttl', (done) => {
+      radicchio.startTimer('10000')
+      .then((timerId) => {
+        radicchio.suspendTimer(timerId)
+        .then(() => {
+          radicchio.resumeTimer(timerId)
+          .then((result) => {
+            expect(result).to.equal(timerId);
+            done();
+          });
+        });
+      });
+    });
+  });
+
   describe('#deleteTimer', () => {
     it('Should delete the timer key in Redis', (done) => {
       radicchio.startTimer('10000')

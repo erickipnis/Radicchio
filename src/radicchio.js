@@ -37,6 +37,8 @@ radicchio.init = function () {
     const deleteFile = loadLuaFile(__dirname + '/lua/delete.lua');
     const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
     const getTimeLeftFile = loadLuaFile(__dirname + '/lua/getTimeLeft.lua');
+    const suspendFile = loadLuaFile(__dirname + '/lua/suspend.lua');
+    const resumeFile = loadLuaFile(__dirname + '/lua/resume.lua');
 
     radicchio.setId = ShortId.generate() + setSuffix;
     redis.config('SET', 'notify-keyspace-events', 'KEA');
@@ -61,12 +63,21 @@ radicchio.init = function () {
       lua: getTimeLeftFile,
     });
 
+    redis.defineCommand('suspendTimer', {
+      numberOfKeys: 2,
+      lua: suspendFile,
+    });
+
+    redis.defineCommand('resumeTimer', {
+      numberOfKeys: 2,
+      lua: resumeFile,
+    });
+
     sub.on('message', function (channel, message) {
-      // Replace with actual emit to event-emitter
-      if (channel === EVENT_DEL && !message.includes(setSuffix)) {
+      if (channel === EVENT_DEL && message.indexOf(setSuffix) === -1) {
         emitter.emit('del', message);
       }
-      else if (channel === EVENT_EXPIRED && !message.includes(setSuffix)) {
+      else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
         emitter.emit('expired', message);
       }
     });
@@ -103,6 +114,42 @@ radicchio.startTimer = function (timeInMS) {
   });
 };
 
+radicchio.suspendTimer = function (timerId) {
+  return new Promise(function (resolve, reject) {
+    try {
+      redis.suspendTimer(radicchio.setId, timerId, '', '', function (err, result) {
+        if (err) {
+          reject(err);
+        }
+        else if (result === 1) {
+          resolve(timerId);
+        }
+      });
+    }
+    catch (e) {
+      reject(e);
+    }
+  });
+};
+
+radicchio.resumeTimer = function (timerId) {
+  return new Promise(function (resolve, reject) {
+    try {
+      redis.resumeTimer(radicchio.setId, timerId, '', '', function (err, result) {
+        if (err) {
+          reject(err);
+        }
+        else if (result.toLowerCase() === 'ok') {
+          resolve(timerId);
+        }
+      });
+    }
+    catch (e) {
+      reject(e);
+    }
+  });
+};
+
 radicchio.deleteTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
@@ -110,10 +157,8 @@ radicchio.deleteTimer = function (timerId) {
         if (err) {
           reject(err);
         }
-        else {
-          if (result === 1) {
-            resolve(true);
-          }
+        else if (result === 1) {
+          resolve(true);
         }
       });
     }
