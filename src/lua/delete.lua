@@ -1,2 +1,2 @@
-redis.call('HDEL', KEYS[1], KEYS[2])
-return redis.call('DEL', KEYS[2])
+redis.call('HDEL', KEYS[1], ARGV[1])
+return redis.call('DEL', ARGV[1])

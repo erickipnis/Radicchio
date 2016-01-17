@@ -13,9 +13,6 @@ const radicchio = {};
 const setSuffix = '-set';
 radicchio.setId = null;
 
-// TODO: EDIT UNIT TESTS
-// TODO: IMPLEMENT SUSPEND AND RESUME TIMER FUNCTIONS
-
 function loadLuaFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
@@ -49,7 +46,7 @@ radicchio.init = function () {
     });
 
     redis.defineCommand('deleteTimer', {
-      numberOfKeys: 2,
+      numberOfKeys: 1,
       lua: deleteFile,
     });
 
@@ -64,12 +61,12 @@ radicchio.init = function () {
     });
 
     redis.defineCommand('suspendTimer', {
-      numberOfKeys: 2,
+      numberOfKeys: 1,
       lua: suspendFile,
     });
 
     redis.defineCommand('resumeTimer', {
-      numberOfKeys: 2,
+      numberOfKeys: 1,
       lua: resumeFile,
     });
 
@@ -84,7 +81,7 @@ radicchio.init = function () {
 
     sub.subscribe(EVENT_DEL, EVENT_EXPIRED);
 
-    setInterval(update, 1);
+    setInterval(update, 1000);
 
     resolve(true);
   });
@@ -117,7 +114,7 @@ radicchio.startTimer = function (timeInMS) {
 radicchio.suspendTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.suspendTimer(radicchio.setId, timerId, '', '', function (err, result) {
+      redis.suspendTimer(radicchio.setId, timerId, function (err, result) {
         if (err) {
           reject(err);
         }
@@ -135,7 +132,7 @@ radicchio.suspendTimer = function (timerId) {
 radicchio.resumeTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.resumeTimer(radicchio.setId, timerId, '', '', function (err, result) {
+      redis.resumeTimer(radicchio.setId, timerId, function (err, result) {
         if (err) {
           reject(err);
         }
@@ -153,7 +150,7 @@ radicchio.resumeTimer = function (timerId) {
 radicchio.deleteTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.deleteTimer(radicchio.setId, timerId, '', '', function (err, result) {
+      redis.deleteTimer(radicchio.setId, timerId, function (err, result) {
         if (err) {
           reject(err);
         }
