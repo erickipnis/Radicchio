@@ -26,7 +26,7 @@ describe('Radicchio_Tests', () => {
 
   describe('#on', () => {
     xit('Should listen for the del command through Redis pub/sub', (done) => {
-      radicchio.on('del', function (message) {
+      radicchio.on('deleted', function (message) {
         console.log('message inside of radicchio.on del callback: ' + message);
         done();
       });

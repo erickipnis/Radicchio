@@ -1,3 +1,4 @@
+// Radicchio imports
 require('babel-core/register');
 import Redis from 'ioredis';
 import fs from 'fs';
@@ -6,6 +7,7 @@ import ShortId from 'shortid';
 import eventEmitter from 'event-emitter';
 import _ from 'lodash';
 
+// Radicchio constants
 const redis = new Redis();
 const sub = new Redis();
 const emitter = eventEmitter({});
@@ -13,23 +15,42 @@ const radicchio = {};
 const setSuffix = '-set';
 radicchio.setId = null;
 
+/**
+* Loads a lua file
+* @param {String} filePath - the file path to load
+* @returns {String} - the loaded file contents
+*/
 function loadLuaFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+/**
+* Update loop that runs once a second and targets redis keys to ensure expiration
+*/
 function update() {
   radicchio.getAllTimesLeft();
 }
 
+/**
+* Sets up event-emitter events to react to Redis Pub/Sub
+* Current supported internal events: deleted, expired
+* @param {String} event - the supported event name to listen for
+* @param {Function} - the callback function passed to event-emitter
+*/
 radicchio.on = function (event, callback) {
   emitter.on(event, callback);
 };
 
+/**
+* Setup initial synchronous settings, events, commands, and files for Radicchio
+* @returns {Promise<Boolean>} - Resolves to true when initialized
+*/
 radicchio.init = function () {
-  const EVENT_DEL = '__keyevent@0__:del';
+  const EVENT_DELETED = '__keyevent@0__:del';
   const EVENT_EXPIRED = '__keyevent@0__:expired';
 
   return new Promise(function (resolve) {
+    // Load lua files
     const startFile = loadLuaFile(__dirname + '/lua/start.lua');
     const deleteFile = loadLuaFile(__dirname + '/lua/delete.lua');
     const getSetKeysFile = loadLuaFile(__dirname + '/lua/getSetKeys.lua');
@@ -38,8 +59,11 @@ radicchio.init = function () {
     const resumeFile = loadLuaFile(__dirname + '/lua/resume.lua');
 
     radicchio.setId = ShortId.generate() + setSuffix;
+
+    // Redis Pub/Sub config settings
     redis.config('SET', 'notify-keyspace-events', 'KEA');
 
+    // Redis custom defined commands
     redis.defineCommand('startTimer', {
       numberOfKeys: 2,
       lua: startFile,
@@ -70,8 +94,9 @@ radicchio.init = function () {
       lua: resumeFile,
     });
 
+    // Event handler for Redis Pub/Sub events with the subscribing Redis client
     sub.on('message', function (channel, message) {
-      if (channel === EVENT_DEL && message.indexOf(setSuffix) === -1) {
+      if (channel === EVENT_DELETED && message.indexOf(setSuffix) === -1) {
         emitter.emit('del', message);
       }
       else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
@@ -79,14 +104,22 @@ radicchio.init = function () {
       }
     });
 
-    sub.subscribe(EVENT_DEL, EVENT_EXPIRED);
+    // Subscribe to the Redis Pub/Sub events with the subscribing Redis client
+    sub.subscribe(EVENT_DELETED, EVENT_EXPIRED);
 
+    // Setup the update function
     setInterval(update, 1000);
 
     resolve(true);
   });
 };
 
+/**
+* Generates an id for a set and a timer using shortid
+* Tracks the timer key in a Redis set and starts an expire on the timer key
+* @param {String} timeInMS - The timer length in milliseconds
+* @returns {Promise<String|Error>} - Resolves to the started timer id
+*/
 radicchio.startTimer = function (timeInMS) {
   return new Promise(function (resolve, reject) {
     try {
@@ -111,6 +144,11 @@ radicchio.startTimer = function (timeInMS) {
   });
 };
 
+/**
+* Suspends a timer by updating the TTL in the global Redis set and deleting the timer
+* @param {String} timerId - The timer id to be suspended
+* @returns {Promise<String|Error>} - Resolves to the suspended timer id
+*/
 radicchio.suspendTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
@@ -129,6 +167,11 @@ radicchio.suspendTimer = function (timerId) {
   });
 };
 
+/**
+* Starts a new timer with the remaining TTL pulled from the global Redis set
+* @param {String} timerId - The timer id to be resumed
+* @returns {Promise<String|Error>} - Resolves to the resumed timer id
+*/
 radicchio.resumeTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
@@ -147,6 +190,11 @@ radicchio.resumeTimer = function (timerId) {
   });
 };
 
+/**
+* Deletes a timer from Redis and the global Redis set
+* @param {String} timerId - The timer id to be deleted
+* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+*/
 radicchio.deleteTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
@@ -165,6 +213,11 @@ radicchio.deleteTimer = function (timerId) {
   });
 };
 
+/**
+* Gets the TTL (time to live) on a timer in Redis
+* @param {String} timerId - The timer id get the time left on
+* @returns {Promise<Number|Error>} - Resolves to the time left in milliseconds
+*/
 radicchio.getTimeLeft = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
@@ -186,6 +239,11 @@ radicchio.getTimeLeft = function (timerId) {
   });
 };
 
+/**
+* Gets the TTL (time to live) on all timers in the global Redis set
+* Filters out any timers that have no time left or have expired
+* @returns {Promise<Array<Number>|Error>} - Resolves to an array of times left in milliseconds
+*/
 radicchio.getAllTimesLeft = function () {
   const promises = [];
 
