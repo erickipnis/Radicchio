@@ -13,6 +13,8 @@ const sub = new Redis();
 const emitter = eventEmitter({});
 const radicchio = {};
 const setSuffix = '-set';
+const suspendedSuffix = '-suspended';
+const resumedSuffix = '-resumed';
 radicchio.setId = null;
 
 /**
@@ -33,7 +35,7 @@ function update() {
 
 /**
 * Sets up event-emitter events to react to Redis Pub/Sub
-* Current supported internal events: deleted, expired
+* Current supported internal events: deleted, expired, suspended, and resumed
 * @param {String} event - the supported event name to listen for
 * @param {Function} - the callback function passed to event-emitter
 */
@@ -48,6 +50,7 @@ radicchio.on = function (event, callback) {
 radicchio.init = function () {
   const EVENT_DELETED = '__keyevent@0__:del';
   const EVENT_EXPIRED = '__keyevent@0__:expired';
+  const EVENT_EXPIRE = '__keyevent@0__:expire';
 
   return new Promise(function (resolve) {
     // Load lua files
@@ -85,27 +88,35 @@ radicchio.init = function () {
     });
 
     redis.defineCommand('suspendTimer', {
-      numberOfKeys: 1,
+      numberOfKeys: 2,
       lua: suspendFile,
     });
 
     redis.defineCommand('resumeTimer', {
-      numberOfKeys: 1,
+      numberOfKeys: 2,
       lua: resumeFile,
     });
 
     // Event handler for Redis Pub/Sub events with the subscribing Redis client
     sub.on('message', function (channel, message) {
-      if (channel === EVENT_DELETED && message.indexOf(setSuffix) === -1) {
-        emitter.emit('del', message);
+      if (channel === EVENT_DELETED) {
+        if (message.indexOf(suspendedSuffix) >= 0) {
+          emitter.emit('suspended', message);
+        }
+        else {
+          emitter.emit('deleted', message);
+        }
       }
       else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
         emitter.emit('expired', message);
       }
+      else if (channel === EVENT_EXPIRE && message.indexOf(resumedSuffix) >= 0) {
+        emitter.emit('resumed', message);
+      }
     });
 
     // Subscribe to the Redis Pub/Sub events with the subscribing Redis client
-    sub.subscribe(EVENT_DELETED, EVENT_EXPIRED);
+    sub.subscribe(EVENT_DELETED, EVENT_EXPIRED, EVENT_EXPIRE);
 
     // Setup the update function
     setInterval(update, 1000);
@@ -152,7 +163,7 @@ radicchio.startTimer = function (timeInMS) {
 radicchio.suspendTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.suspendTimer(radicchio.setId, timerId, function (err, result) {
+      redis.suspendTimer(radicchio.setId, timerId, timerId + suspendedSuffix, function (err, result) {
         if (err) {
           reject(err);
         }
@@ -175,7 +186,7 @@ radicchio.suspendTimer = function (timerId) {
 radicchio.resumeTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.resumeTimer(radicchio.setId, timerId, function (err, result) {
+      redis.resumeTimer(radicchio.setId, timerId, timerId + resumedSuffix, '', function (err, result) {
         if (err) {
           reject(err);
         }
