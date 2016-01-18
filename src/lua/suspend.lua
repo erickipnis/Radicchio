@@ -1,3 +1,4 @@
-local ttl = redis.call('PTTL', ARGV[1])
-redis.call('HSET', KEYS[1], ARGV[1], ttl)
+local ttl = redis.call('PTTL', KEYS[2])
+redis.call('HSET', KEYS[1], KEYS[2], ttl)
+redis.call('RENAME', KEYS[2], ARGV[1])
 return redis.call('DEL', ARGV[1])
