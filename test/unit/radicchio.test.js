@@ -97,13 +97,12 @@ describe('Radicchio_Tests', () => {
 
   describe('#getAllTimesLeft', () => {
     it('Should get the time to live on all timer ids in the global set', (done) => {
-      const setId = radicchio.setId;
       Promise.all([
         radicchio.startTimer('10000'),
         radicchio.startTimer('10000'),
       ])
       .then(() => {
-        radicchio.getAllTimesLeft(setId)
+        radicchio.getAllTimesLeft()
         .then((results) => {
           expect(results).to.be.a('array');
           done();

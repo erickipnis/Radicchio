@@ -4,11 +4,25 @@ module.exports = function(grunt) {
   'use strict';
 
   var unitTestFiles = ['test/unit/*.js'];
-  var sourceFiles = ['src/**/*.js'];
+  var sourceFiles = ['src/*.js'];
   var jsFiles = sourceFiles.concat(unitTestFiles);
+
+  process.env.NODE_ENV='test';
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+
+    babel: {
+      options: {
+        sourceMap: true,
+        presets: ['es2015']
+      },
+      dist: {
+        files: {
+            'dist/app.js': 'src/radicchio.js'
+        }
+      }
+    },
 
     eslint: {
       target: jsFiles,
@@ -32,7 +46,7 @@ module.exports = function(grunt) {
   // Load the grunt plugins
   require('load-grunt-tasks')(grunt);
 
-  grunt.registerTask('default', 'test');
+  grunt.registerTask('default', ['babel']);
   grunt.registerTask('lint', 'eslint');
   grunt.registerTask('unit-test', 'mochaTest');
   grunt.registerTask('test', ['lint', 'unit-test']);

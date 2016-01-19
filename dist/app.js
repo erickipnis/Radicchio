@@ -1,20 +1,43 @@
+'use strict';
+require('source-map-support').install();
+
+var _ioredis = require('ioredis');
+
+var _ioredis2 = _interopRequireDefault(_ioredis);
+
+var _fs = require('fs');
+
+var _fs2 = _interopRequireDefault(_fs);
+
+var _bluebird = require('bluebird');
+
+var _bluebird2 = _interopRequireDefault(_bluebird);
+
+var _shortid = require('shortid');
+
+var _shortid2 = _interopRequireDefault(_shortid);
+
+var _eventEmitter = require('event-emitter');
+
+var _eventEmitter2 = _interopRequireDefault(_eventEmitter);
+
+var _lodash = require('lodash');
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 // Radicchio imports
 require('babel-core/register');
-import Redis from 'ioredis';
-import fs from 'fs';
-import Promise from 'bluebird';
-import ShortId from 'shortid';
-import eventEmitter from 'event-emitter';
-import _ from 'lodash';
 
 // Radicchio constants
-const redis = new Redis();
-const sub = new Redis();
-const emitter = eventEmitter({});
-const radicchio = {};
-const setSuffix = '-set';
-const suspendedSuffix = '-suspended';
-const resumedSuffix = '-resumed';
+var redis = new _ioredis2.default();
+var sub = new _ioredis2.default();
+var emitter = (0, _eventEmitter2.default)({});
+var radicchio = {};
+var setSuffix = '-set';
+var suspendedSuffix = '-suspended';
+var resumedSuffix = '-resumed';
 
 /**
 * Loads a lua file
@@ -22,8 +45,8 @@ const resumedSuffix = '-resumed';
 * @returns {String} - the loaded file contents
 */
 function loadLuaFile(fileName) {
-  const luaDirectory = __dirname + '/../src/lua/';
-  return fs.readFileSync(luaDirectory + fileName, 'utf8');
+  var luaDirectory = __dirname + '/../src/lua/';
+  return _fs2.default.readFileSync(luaDirectory + fileName, 'utf8');
 }
 
 /**
@@ -48,20 +71,20 @@ radicchio.on = function (event, callback) {
 * @returns {Promise<Boolean>} - Resolves to true when initialized
 */
 radicchio.init = function () {
-  const EVENT_DELETED = '__keyevent@0__:del';
-  const EVENT_EXPIRED = '__keyevent@0__:expired';
-  const EVENT_EXPIRE = '__keyevent@0__:expire';
+  var EVENT_DELETED = '__keyevent@0__:del';
+  var EVENT_EXPIRED = '__keyevent@0__:expired';
+  var EVENT_EXPIRE = '__keyevent@0__:expire';
 
-  radicchio.setId = ShortId.generate() + setSuffix;
+  radicchio.setId = _shortid2.default.generate() + setSuffix;
 
-  return new Promise(function (resolve) {
+  return new _bluebird2.default(function (resolve) {
     // Load lua files
-    const startFile = loadLuaFile('start.lua');
-    const deleteFile = loadLuaFile('delete.lua');
-    const getSetKeysFile = loadLuaFile('getSetKeys.lua');
-    const getTimeLeftFile = loadLuaFile('getTimeLeft.lua');
-    const suspendFile = loadLuaFile('suspend.lua');
-    const resumeFile = loadLuaFile('resume.lua');
+    var startFile = loadLuaFile('start.lua');
+    var deleteFile = loadLuaFile('delete.lua');
+    var getSetKeysFile = loadLuaFile('getSetKeys.lua');
+    var getTimeLeftFile = loadLuaFile('getTimeLeft.lua');
+    var suspendFile = loadLuaFile('suspend.lua');
+    var resumeFile = loadLuaFile('resume.lua');
 
     // Redis Pub/Sub config settings
     redis.config('SET', 'notify-keyspace-events', 'KEA');
@@ -69,32 +92,32 @@ radicchio.init = function () {
     // Redis custom defined commands
     redis.defineCommand('startTimer', {
       numberOfKeys: 2,
-      lua: startFile,
+      lua: startFile
     });
 
     redis.defineCommand('deleteTimer', {
       numberOfKeys: 1,
-      lua: deleteFile,
+      lua: deleteFile
     });
 
     redis.defineCommand('getSetKeys', {
       numberOfKeys: 1,
-      lua: getSetKeysFile,
+      lua: getSetKeysFile
     });
 
     redis.defineCommand('getTimeLeft', {
       numberOfKeys: 1,
-      lua: getTimeLeftFile,
+      lua: getTimeLeftFile
     });
 
     redis.defineCommand('suspendTimer', {
       numberOfKeys: 2,
-      lua: suspendFile,
+      lua: suspendFile
     });
 
     redis.defineCommand('resumeTimer', {
       numberOfKeys: 2,
-      lua: resumeFile,
+      lua: resumeFile
     });
 
     // Event handler for Redis Pub/Sub events with the subscribing Redis client
@@ -102,15 +125,12 @@ radicchio.init = function () {
       if (channel === EVENT_DELETED) {
         if (message.indexOf(suspendedSuffix) >= 0) {
           emitter.emit('suspended', message);
-        }
-        else {
+        } else {
           emitter.emit('deleted', message);
         }
-      }
-      else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
+      } else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
         emitter.emit('expired', message);
-      }
-      else if (channel === EVENT_EXPIRE && message.indexOf(resumedSuffix) >= 0) {
+      } else if (channel === EVENT_EXPIRE && message.indexOf(resumedSuffix) >= 0) {
         emitter.emit('resumed', message);
       }
     });
@@ -132,24 +152,24 @@ radicchio.init = function () {
 * @returns {Promise<String|Error>} - Resolves to the started timer id
 */
 radicchio.startTimer = function (timeInMS) {
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
-      if (radicchio.setId === null) {
-        radicchio.setId = ShortId.generate() + setSuffix;
-      }
-
-      const timerId = ShortId.generate();
-
-      redis.startTimer(radicchio.setId, timerId, timeInMS, '', function (err, result) {
-        if (err) {
-          reject(err);
+      (function () {
+        if (radicchio.setId === null) {
+          radicchio.setId = _shortid2.default.generate() + setSuffix;
         }
-        else if (result.toLowerCase() === 'ok') {
-          resolve(timerId);
-        }
-      });
-    }
-    catch (e) {
+
+        var timerId = _shortid2.default.generate();
+
+        redis.startTimer(radicchio.setId, timerId, timeInMS, '', function (err, result) {
+          if (err) {
+            reject(err);
+          } else if (result.toLowerCase() === 'ok') {
+            resolve(timerId);
+          }
+        });
+      })();
+    } catch (e) {
       reject(e);
     }
   });
@@ -161,18 +181,16 @@ radicchio.startTimer = function (timeInMS) {
 * @returns {Promise<String|Error>} - Resolves to the suspended timer id
 */
 radicchio.suspendTimer = function (timerId) {
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
       redis.suspendTimer(radicchio.setId, timerId, timerId + suspendedSuffix, function (err, result) {
         if (err) {
           reject(err);
-        }
-        else if (result === 1) {
+        } else if (result === 1) {
           resolve(timerId);
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       reject(e);
     }
   });
@@ -184,18 +202,16 @@ radicchio.suspendTimer = function (timerId) {
 * @returns {Promise<String|Error>} - Resolves to the resumed timer id
 */
 radicchio.resumeTimer = function (timerId) {
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
       redis.resumeTimer(radicchio.setId, timerId, timerId + resumedSuffix, '', function (err, result) {
         if (err) {
           reject(err);
-        }
-        else if (result.toLowerCase() === 'ok') {
+        } else if (result.toLowerCase() === 'ok') {
           resolve(timerId);
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       reject(e);
     }
   });
@@ -207,18 +223,16 @@ radicchio.resumeTimer = function (timerId) {
 * @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
 */
 radicchio.deleteTimer = function (timerId) {
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
       redis.deleteTimer(radicchio.setId, timerId, function (err, result) {
         if (err) {
           reject(err);
-        }
-        else if (result === 1) {
+        } else if (result === 1) {
           resolve(true);
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       reject(e);
     }
   });
@@ -230,21 +244,18 @@ radicchio.deleteTimer = function (timerId) {
 * @returns {Promise<Number|Error>} - Resolves to the time left in milliseconds
 */
 radicchio.getTimeLeft = function (timerId) {
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
       redis.getTimeLeft(timerId, '', function (err, result) {
         if (err) {
           reject(err);
-        }
-        else if (result >= 0) {
+        } else if (result >= 0) {
           resolve(result);
-        }
-        else if (result < 0) {
+        } else if (result < 0) {
           resolve(null);
         }
       });
-    }
-    catch (e) {
+    } catch (e) {
       reject(e);
     }
   });
@@ -256,18 +267,17 @@ radicchio.getTimeLeft = function (timerId) {
 * @returns {Promise<Array<Number>|Error>} - Resolves to an array of times left in milliseconds
 */
 radicchio.getAllTimesLeft = function () {
-  const promises = [];
+  var promises = [];
 
-  return new Promise(function (resolve, reject) {
+  return new _bluebird2.default(function (resolve, reject) {
     try {
       redis.getSetKeys(radicchio.setId, '', function (err, result) {
-        _.map(result, function (timerId) {
+        _lodash2.default.map(result, function (timerId) {
           promises.push(radicchio.getTimeLeft(timerId));
         });
 
-        Promise.all(promises)
-        .then(function (timesLeft) {
-          const filtered = _.filter(timesLeft, function (timeLeft) {
+        _bluebird2.default.all(promises).then(function (timesLeft) {
+          var filtered = _lodash2.default.filter(timesLeft, function (timeLeft) {
             return timeLeft > 0 || timeLeft !== null;
           });
 
@@ -277,11 +287,11 @@ radicchio.getAllTimesLeft = function () {
           resolve(filtered);
         });
       });
-    }
-    catch (e) {
+    } catch (e) {
       reject(e);
     }
   });
 };
 
 module.exports = radicchio;
+//# sourceMappingURL=app.js.map
