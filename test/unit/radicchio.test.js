@@ -46,7 +46,7 @@ describe('Radicchio_Tests', () => {
       .then((timerId) => {
         radicchio.suspendTimer(timerId)
         .then((result) => {
-          expect(result).to.equal(timerId);
+          expect(result).to.equal(true);
           done();
         });
       });
@@ -61,7 +61,7 @@ describe('Radicchio_Tests', () => {
         .then(() => {
           radicchio.resumeTimer(timerId)
           .then((result) => {
-            expect(result).to.equal(timerId);
+            expect(result).to.equal(true);
             done();
           });
         });
@@ -88,7 +88,7 @@ describe('Radicchio_Tests', () => {
       .then((timerId) => {
         radicchio.getTimeLeft(timerId)
         .then((result) => {
-          expect(result).to.be.at.least(0);
+          expect(result.timeLeft).to.be.at.least(0);
           done();
         });
       });
