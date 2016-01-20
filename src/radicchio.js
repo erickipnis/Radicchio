@@ -168,7 +168,7 @@ radicchio.suspendTimer = function (timerId) {
           reject(err);
         }
         else if (result === 1) {
-          resolve(timerId);
+          resolve(true);
         }
       });
     }
@@ -191,7 +191,7 @@ radicchio.resumeTimer = function (timerId) {
           reject(err);
         }
         else if (result.toLowerCase() === 'ok') {
-          resolve(timerId);
+          resolve(true);
         }
       });
     }
@@ -232,14 +232,18 @@ radicchio.deleteTimer = function (timerId) {
 radicchio.getTimeLeft = function (timerId) {
   return new Promise(function (resolve, reject) {
     try {
-      redis.getTimeLeft(timerId, '', function (err, result) {
+      redis.getTimeLeft(timerId, '', function (err, timeLeft) {
         if (err) {
           reject(err);
         }
-        else if (result >= 0) {
-          resolve(result);
+        else if (timeLeft >= 0) {
+          const timerObj = {
+            timerId,
+            timeLeft,
+          };
+          resolve(timerObj);
         }
-        else if (result < 0) {
+        else if (timeLeft < 0) {
           resolve(null);
         }
       });
@@ -266,9 +270,9 @@ radicchio.getAllTimesLeft = function () {
         });
 
         Promise.all(promises)
-        .then(function (timesLeft) {
-          const filtered = _.filter(timesLeft, function (timeLeft) {
-            return timeLeft > 0 || timeLeft !== null;
+        .then((timerObjs) => {
+          const filtered = _.filter(timerObjs, function (timerObj) {
+            return timerObj !== null && timerObj.timeLeft > 0;
           });
 
           if (filtered.length === 0) {
