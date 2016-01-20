@@ -26,31 +26,31 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 
 ### API
 #### startTimer(timeInMS) - start a timer with an expiration time
-* @param {String} timeInMS - The timer length in milliseconds
-* @returns {Promise<String|Error>} - Resolves to the started timer id
+- @param {String} timeInMS - The timer length in milliseconds
+- @returns {Promise<String|Error>} - Resolves to the started timer id
 
 #### deleteTimer(timerId) - delete a timer
-* @param {String} timerId - The timer id to be deleted
-* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+- @param {String} timerId - The timer id to be deleted
+- @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
 
 #### suspendTimer(timerId) - suspend a timer
-* @param {String} timerId - The timer id to be suspended
-* @returns {Promise<Boolean|Error>} - Resolves to true if suspended successfully
+- @param {String} timerId - The timer id to be suspended
+- @returns {Promise<Boolean|Error>} - Resolves to true if suspended successfully
 
 #### resumeTimer(timerId) - resume a timer
-* @param {String} timerId - The timer id to be resumed
-* @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
+- @param {String} timerId - The timer id to be resumed
+- @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
 
 #### getTimeLeft(timerId) - get the time left on a timer
-* @param {String} timerId - The timer id get the time left on
-* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and time left in milliseconds
+- @param {String} timerId - The timer id get the time left on
+- @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and time left in milliseconds
 
 #### getAllTimesLeft() - gets all of the times left on all timers (including suspended)
-* @returns {Promise<Array<{String, Number}>|Error>} - Resolves to array of objects with timer id and time left in milliseconds
+- @returns {Promise<{Array{String, Number}}|Error>} - Resolves to array of objects with timer id and time left in milliseconds
 
 #### on(event, callback) - sets up event listener for timer events
-* @param {String} event - the supported event name to listen for
-* @param {Function} - the callback function passed to event-emitter
+- @param {String} event - the supported event name to listen for
+- @param {Function} - the callback function passed to event-emitter
 
 ### Example Usage
 ```
