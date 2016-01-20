@@ -77,8 +77,8 @@ radicchio.resumeTimer(timerId)
 });
 
 radicchio.getTimeLeft(timerId)
-.then((timeObj) => {
-  // timeObj contains an object with the timerId and timeLeft (in milliseconds)
+.then((timerObj) => {
+  // timerObj contains an object with the timerId and timeLeft (in milliseconds)
 });
 
 radicchio.getAllTimesLeft()

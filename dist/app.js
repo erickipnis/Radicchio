@@ -125,8 +125,10 @@ radicchio.init = function () {
       if (channel === EVENT_DELETED) {
         if (message.indexOf(suspendedSuffix) >= 0) {
           emitter.emit('suspended', message);
-        } else {
+        } else if (message.indexOf(setSuffix) === -1) {
           emitter.emit('deleted', message);
+        } else if (message.indexOf(setSuffix) >= 0) {
+          radicchio.setId = _shortid2.default.generate() + setSuffix;
         }
       } else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
         emitter.emit('expired', message);
@@ -155,10 +157,6 @@ radicchio.startTimer = function (timeInMS) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
       (function () {
-        if (radicchio.setId === null) {
-          radicchio.setId = _shortid2.default.generate() + setSuffix;
-        }
-
         var timerId = _shortid2.default.generate();
 
         redis.startTimer(radicchio.setId, timerId, timeInMS, '', function (err, result) {
@@ -183,7 +181,7 @@ radicchio.startTimer = function (timeInMS) {
 radicchio.suspendTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.suspendTimer(radicchio.setId, timerId, timerId + suspendedSuffix, function (err, result) {
+      redis.suspendTimer(radicchio.setId, timerId, timerId + suspendedSuffix, '', function (err, result) {
         if (err) {
           reject(err);
         } else if (result === 1) {
@@ -285,9 +283,6 @@ radicchio.getAllTimesLeft = function () {
             return timerObj !== null && timerObj.timeLeft > 0;
           });
 
-          if (filtered.length === 0) {
-            radicchio.setId = null;
-          }
           resolve(filtered);
         });
       });
