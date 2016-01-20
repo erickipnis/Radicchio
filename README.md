@@ -35,15 +35,15 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 
 #### suspendTimer(timerId) - suspend a timer
 * @param {String} timerId - The timer id to be suspended
-* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+* @returns {Promise<Boolean|Error>} - Resolves to true if suspended successfully
 
 #### resumeTimer(timerId) - resume a timer
 * @param {String} timerId - The timer id to be resumed
-* @returns {Promise<String|Error>} - Resolves to true if deleted successfully
+* @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
 
 #### getTimeLeft(timerId) - get the time left on a timer
 * @param {String} timerId - The timer id get the time left on
-* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and left in milliseconds
+* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and time left in milliseconds
 
 #### getAllTimesLeft() - gets all of the times left on all timers (including suspended)
 * @returns {Promise<Array<{String, Number}>|Error>} - Resolves to array of objects with timer id and time left in milliseconds

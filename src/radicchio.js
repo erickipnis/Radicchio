@@ -158,7 +158,7 @@ radicchio.startTimer = function (timeInMS) {
 /**
 * Suspends a timer by updating the TTL in the global Redis set and deleting the timer
 * @param {String} timerId - The timer id to be suspended
-* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+* @returns {Promise<Boolean|Error>} - Resolves to true if suspended successfully
 */
 radicchio.suspendTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
@@ -181,7 +181,7 @@ radicchio.suspendTimer = function (timerId) {
 /**
 * Starts a new timer with the remaining TTL pulled from the global Redis set
 * @param {String} timerId - The timer id to be resumed
-* @returns {Promise<String|Error>} - Resolves to true if deleted successfully
+* @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
 */
 radicchio.resumeTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
