@@ -25,7 +25,32 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 - resumed: triggers when a suspended timer is taken from the global set and set to expire with the remaining time left
 
 ### API
+#### startTimer(timeInMS) - start a timer with an expiration time
+* @param {String} timeInMS - The timer length in milliseconds
+* @returns {Promise<String|Error>} - Resolves to the started timer id
 
+#### deleteTimer(timerId) - delete a timer
+* @param {String} timerId - The timer id to be deleted
+* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+
+#### suspendTimer(timerId) - suspend a timer
+* @param {String} timerId - The timer id to be suspended
+* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+
+#### resumeTimer(timerId) - resume a timer
+* @param {String} timerId - The timer id to be resumed
+* @returns {Promise<String|Error>} - Resolves to true if deleted successfully
+
+#### getTimeLeft(timerId) - get the time left on a timer
+* @param {String} timerId - The timer id get the time left on
+* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and left in milliseconds
+
+#### getAllTimesLeft() - gets all of the times left on all timers (including suspended)
+* @returns {Promise<Array<{String, Number}>|Error>} - Resolves to array of objects with timer id and time left in milliseconds
+
+#### on(event, callback) - sets up event listener for timer events
+* @param {String} event - the supported event name to listen for
+* @param {Function} - the callback function passed to event-emitter
 
 ### Example Usage
 ```
@@ -52,13 +77,13 @@ radicchio.resumeTimer(timerId)
 });
 
 radicchio.getTimeLeft(timerId)
-.then((timeLeft) => {
-  // timeLeft contains the number of milliseconds left in the timer returned by the promise
+.then((timeObj) => {
+  // timeObj contains an object with the timerId and timeLeft (in milliseconds)
 });
 
 radicchio.getAllTimesLeft()
-.then((timesLeft) => {
-  // timesLeft contains an array of objects each with a timerId and the respective amount of time left in milliseconds
+.then((timerObjs) => {
+  // timerObjs contains an array of objects each with a timerId and the time left in milliseconds
 });
 
 radicchio.on('expired', function(expiredTimerId) {

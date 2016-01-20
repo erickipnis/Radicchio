@@ -158,7 +158,7 @@ radicchio.startTimer = function (timeInMS) {
 /**
 * Suspends a timer by updating the TTL in the global Redis set and deleting the timer
 * @param {String} timerId - The timer id to be suspended
-* @returns {Promise<String|Error>} - Resolves to the suspended timer id
+* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
 */
 radicchio.suspendTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
@@ -181,7 +181,7 @@ radicchio.suspendTimer = function (timerId) {
 /**
 * Starts a new timer with the remaining TTL pulled from the global Redis set
 * @param {String} timerId - The timer id to be resumed
-* @returns {Promise<String|Error>} - Resolves to the resumed timer id
+* @returns {Promise<String|Error>} - Resolves to true if deleted successfully
 */
 radicchio.resumeTimer = function (timerId) {
   return new Promise(function (resolve, reject) {
@@ -227,7 +227,7 @@ radicchio.deleteTimer = function (timerId) {
 /**
 * Gets the TTL (time to live) on a timer in Redis
 * @param {String} timerId - The timer id get the time left on
-* @returns {Promise<Number|Error>} - Resolves to the time left in milliseconds
+* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and left in milliseconds
 */
 radicchio.getTimeLeft = function (timerId) {
   return new Promise(function (resolve, reject) {
@@ -257,7 +257,7 @@ radicchio.getTimeLeft = function (timerId) {
 /**
 * Gets the TTL (time to live) on all timers in the global Redis set
 * Filters out any timers that have no time left or have expired
-* @returns {Promise<Array<Number>|Error>} - Resolves to an array of times left in milliseconds
+* @returns {Promise<Array<{String, Number}>|Error>} - Resolves to an array of objects with a timer id and time left in milliseconds
 */
 radicchio.getAllTimesLeft = function () {
   const promises = [];
