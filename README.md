@@ -43,7 +43,7 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 
 #### getTimeLeft(timerId) - get the time left on a timer
 - @param {String} timerId - The timer id get the time left on
-- @returns {Promise<Object(String, Number)|Error>} - Resolves to an object with the timer id and time left in milliseconds
+- @returns {Promise<(Object(String, Number))|Error>} - Resolves to an object with the timer id and time left in milliseconds
 
 #### getAllTimesLeft() - gets all of the times left on all timers (including suspended)
 - @returns {Promise<(Array(Object(String, Number)))|Error>} - Resolves to array of objects with timer id and time left
