@@ -178,7 +178,7 @@ radicchio.startTimer = function (timeInMS) {
 /**
 * Suspends a timer by updating the TTL in the global Redis set and deleting the timer
 * @param {String} timerId - The timer id to be suspended
-* @returns {Promise<String|Error>} - Resolves to the suspended timer id
+* @returns {Promise<Boolean|Error>} - Resolves to true if suspended successfully
 */
 radicchio.suspendTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
@@ -187,7 +187,7 @@ radicchio.suspendTimer = function (timerId) {
         if (err) {
           reject(err);
         } else if (result === 1) {
-          resolve(timerId);
+          resolve(true);
         }
       });
     } catch (e) {
@@ -199,7 +199,7 @@ radicchio.suspendTimer = function (timerId) {
 /**
 * Starts a new timer with the remaining TTL pulled from the global Redis set
 * @param {String} timerId - The timer id to be resumed
-* @returns {Promise<String|Error>} - Resolves to the resumed timer id
+* @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
 */
 radicchio.resumeTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
@@ -208,7 +208,7 @@ radicchio.resumeTimer = function (timerId) {
         if (err) {
           reject(err);
         } else if (result.toLowerCase() === 'ok') {
-          resolve(timerId);
+          resolve(true);
         }
       });
     } catch (e) {
@@ -241,17 +241,21 @@ radicchio.deleteTimer = function (timerId) {
 /**
 * Gets the TTL (time to live) on a timer in Redis
 * @param {String} timerId - The timer id get the time left on
-* @returns {Promise<Number|Error>} - Resolves to the time left in milliseconds
+* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and left in milliseconds
 */
 radicchio.getTimeLeft = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.getTimeLeft(timerId, '', function (err, result) {
+      redis.getTimeLeft(timerId, '', function (err, timeLeft) {
         if (err) {
           reject(err);
-        } else if (result >= 0) {
-          resolve(result);
-        } else if (result < 0) {
+        } else if (timeLeft >= 0) {
+          var timerObj = {
+            timerId: timerId,
+            timeLeft: timeLeft
+          };
+          resolve(timerObj);
+        } else if (timeLeft < 0) {
           resolve(null);
         }
       });
@@ -264,7 +268,7 @@ radicchio.getTimeLeft = function (timerId) {
 /**
 * Gets the TTL (time to live) on all timers in the global Redis set
 * Filters out any timers that have no time left or have expired
-* @returns {Promise<Array<Number>|Error>} - Resolves to an array of times left in milliseconds
+* @returns {Promise<Array<{String, Number}>|Error>} - Resolves to an array of objects with a timer id and time left in milliseconds
 */
 radicchio.getAllTimesLeft = function () {
   var promises = [];
@@ -276,9 +280,9 @@ radicchio.getAllTimesLeft = function () {
           promises.push(radicchio.getTimeLeft(timerId));
         });
 
-        _bluebird2.default.all(promises).then(function (timesLeft) {
-          var filtered = _lodash2.default.filter(timesLeft, function (timeLeft) {
-            return timeLeft > 0 || timeLeft !== null;
+        _bluebird2.default.all(promises).then(function (timerObjs) {
+          var filtered = _lodash2.default.filter(timerObjs, function (timerObj) {
+            return timerObj !== null && timerObj.timeLeft > 0;
           });
 
           if (filtered.length === 0) {
