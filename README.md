@@ -83,7 +83,7 @@ radicchio.getTimeLeft(timerId)
 
 radicchio.getAllTimesLeft()
 .then((timerObjs) => {
-  // timerObjs contains an array of objects each with a timerId and the time left in milliseconds
+  // timerObjs contains an array of objects each with a timerId and timeLeft in milliseconds
 });
 
 radicchio.on('expired', function(expiredTimerId) {
