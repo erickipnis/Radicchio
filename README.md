@@ -1,5 +1,4 @@
-# Radicchio
-Version 1.0.0
+# Radicchio - Version 1.0.1
 A distributed timer written with ES6 syntax and implemented with Redis and Lua scripts.
 
 ## Installation
