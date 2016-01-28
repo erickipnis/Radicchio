@@ -16,7 +16,7 @@ describe('Radicchio_Tests', () => {
 
   describe('#startTimer', () => {
     it('Should store the timer key in Redis', (done) => {
-      radicchio.startTimer('10000')
+      radicchio.startTimer('10000', {})
       .then((result) => {
         expect(result).to.be.a('string');
         done();
@@ -24,17 +24,19 @@ describe('Radicchio_Tests', () => {
     });
   });
 
+  // The on function works properly, but there is no way to access the instance of event emitter in radicchio
+  // Also the callback exceeds 2 seconds for a delete so it times out
   describe('#on', () => {
     xit('Should listen for the del command through Redis pub/sub', (done) => {
       radicchio.on('deleted', function (message) {
-        console.log('message inside of radicchio.on del callback: ' + message);
+        expect(message).to.be.a('string');
         done();
       });
     });
 
     xit('Should listen for the expired command through Redis pub/sub', (done) => {
       radicchio.on('expired', function (message) {
-        console.log('message inside of radicchio.on expired callback: ' + message);
+        expect(message).to.be.an('object');
         done();
       });
     });
@@ -71,11 +73,17 @@ describe('Radicchio_Tests', () => {
 
   describe('#deleteTimer', () => {
     it('Should delete the timer key in Redis', (done) => {
-      radicchio.startTimer('10000')
+      const data = {
+        id: 'abc123',
+        exampleData: 10,
+        otherData: {},
+      };
+
+      radicchio.startTimer('10000', data)
       .then((timerId) => {
         radicchio.deleteTimer(timerId)
         .then((result) => {
-          expect(result).to.equal(true);
+          expect(result).to.be.an('object');
           done();
         });
       });
@@ -103,6 +111,47 @@ describe('Radicchio_Tests', () => {
       ])
       .then(() => {
         radicchio.getAllTimesLeft()
+        .then((results) => {
+          expect(results).to.be.a('array');
+          done();
+        });
+      });
+    });
+  });
+
+  describe('#getTimerData', () => {
+    it('Should get the data associated with a timer id from the global data set', (done) => {
+      const data = {
+        id: 'abc123',
+        exampleData: 10,
+        otherData: {},
+      };
+
+      radicchio.startTimer('10000', data)
+      .then((timerId) => {
+        radicchio.getTimerData(timerId)
+        .then((result) => {
+          expect(result).to.be.an('object');
+          done();
+        });
+      });
+    });
+  });
+
+  describe('#getDataFromAllTimers', () => {
+    it('Should get the associated data on all timer ids in the global data set', (done) => {
+      const data = {
+        id: 'abc123',
+        exampleData: 10,
+        otherData: {},
+      };
+
+      Promise.all([
+        radicchio.startTimer('10000', data),
+        radicchio.startTimer('10000', data),
+      ])
+      .then(() => {
+        radicchio.getDataFromAllTimers()
         .then((results) => {
           expect(results).to.be.a('array');
           done();

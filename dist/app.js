@@ -35,7 +35,8 @@ var redis = new _ioredis2.default();
 var sub = new _ioredis2.default();
 var emitter = (0, _eventEmitter2.default)({});
 var radicchio = {};
-var setSuffix = '-set';
+var setTTLSuffix = '-ttl-set';
+var setDataSuffix = '-data-set';
 var suspendedSuffix = '-suspended';
 var resumedSuffix = '-resumed';
 
@@ -54,6 +55,7 @@ function loadLuaFile(fileName) {
 */
 function update() {
   radicchio.getAllTimesLeft();
+  radicchio.getDataFromAllTimers();
 }
 
 /**
@@ -75,7 +77,10 @@ radicchio.init = function () {
   var EVENT_EXPIRED = '__keyevent@0__:expired';
   var EVENT_EXPIRE = '__keyevent@0__:expire';
 
-  radicchio.setId = _shortid2.default.generate() + setSuffix;
+  radicchio.globalSetId = _shortid2.default.generate();
+
+  radicchio.timerSetId = radicchio.globalSetId + setTTLSuffix;
+  radicchio.dataSetId = radicchio.globalSetId + setDataSuffix;
 
   return new _bluebird2.default(function (resolve) {
     // Load lua files
@@ -85,18 +90,20 @@ radicchio.init = function () {
     var getTimeLeftFile = loadLuaFile('getTimeLeft.lua');
     var suspendFile = loadLuaFile('suspend.lua');
     var resumeFile = loadLuaFile('resume.lua');
+    var getDataFile = loadLuaFile('getTimerData.lua');
+    var deleteFromSetsFile = loadLuaFile('deleteFromSets.lua');
 
     // Redis Pub/Sub config settings
     redis.config('SET', 'notify-keyspace-events', 'KEA');
 
     // Redis custom defined commands
     redis.defineCommand('startTimer', {
-      numberOfKeys: 2,
+      numberOfKeys: 3,
       lua: startFile
     });
 
     redis.defineCommand('deleteTimer', {
-      numberOfKeys: 1,
+      numberOfKeys: 2,
       lua: deleteFile
     });
 
@@ -120,18 +127,40 @@ radicchio.init = function () {
       lua: resumeFile
     });
 
+    redis.defineCommand('getTimerData', {
+      numberOfKeys: 1,
+      lua: getDataFile
+    });
+
+    redis.defineCommand('deleteFromSets', {
+      numberOfKeys: 2,
+      lua: deleteFromSetsFile
+    });
+
     // Event handler for Redis Pub/Sub events with the subscribing Redis client
     sub.on('message', function (channel, message) {
       if (channel === EVENT_DELETED) {
         if (message.indexOf(suspendedSuffix) >= 0) {
           emitter.emit('suspended', message);
-        } else if (message.indexOf(setSuffix) === -1) {
+        } else if (message.indexOf(setDataSuffix) >= 0) {
+          radicchio.dataSetId = null;
+        } else if (message.indexOf(setTTLSuffix) >= 0) {
+          radicchio.timerSetId = null;
+        } else if (message.indexOf(setTTLSuffix) === -1) {
           emitter.emit('deleted', message);
-        } else if (message.indexOf(setSuffix) >= 0) {
-          radicchio.setId = _shortid2.default.generate() + setSuffix;
         }
-      } else if (channel === EVENT_EXPIRED && message.indexOf(setSuffix) === -1) {
-        emitter.emit('expired', message);
+
+        if (radicchio.timerSetId === null && radicchio.dataSetId === null) {
+          radicchio.globalSetId = _shortid2.default.generate();
+          radicchio.timerSetId = radicchio.globalSetId + setTTLSuffix;
+          radicchio.dataSetId = radicchio.globalSetId + setDataSuffix;
+        }
+      } else if (channel === EVENT_EXPIRED && message.indexOf(setTTLSuffix) === -1) {
+        redis.deleteFromSets(radicchio.timerSetId, radicchio.dataSetId, message, function () {});
+
+        radicchio.getTimerData(message).then(function (timerObj) {
+          emitter.emit('expired', timerObj);
+        });
       } else if (channel === EVENT_EXPIRE && message.indexOf(resumedSuffix) >= 0) {
         emitter.emit('resumed', message);
       }
@@ -151,15 +180,21 @@ radicchio.init = function () {
 * Generates an id for a set and a timer using shortid
 * Tracks the timer key in a Redis set and starts an expire on the timer key
 * @param {String} timeInMS - The timer length in milliseconds
+* @param {Object} data - data object to be associated with the timer
 * @returns {Promise<String|Error>} - Resolves to the started timer id
 */
-radicchio.startTimer = function (timeInMS) {
+radicchio.startTimer = function (timeInMS, data) {
+  if (data === undefined || data === null) {
+    data = {};
+  }
+
   return new _bluebird2.default(function (resolve, reject) {
     try {
       (function () {
         var timerId = _shortid2.default.generate();
+        var dataStringified = JSON.stringify(data);
 
-        redis.startTimer(radicchio.setId, timerId, timeInMS, '', function (err, result) {
+        redis.startTimer(radicchio.timerSetId, timerId, radicchio.dataSetId, timeInMS, dataStringified, '', function (err, result) {
           if (err) {
             reject(err);
           } else if (result.toLowerCase() === 'ok') {
@@ -181,7 +216,7 @@ radicchio.startTimer = function (timeInMS) {
 radicchio.suspendTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.suspendTimer(radicchio.setId, timerId, timerId + suspendedSuffix, '', function (err, result) {
+      redis.suspendTimer(radicchio.timerSetId, timerId, timerId + suspendedSuffix, '', function (err, result) {
         if (err) {
           reject(err);
         } else if (result === 1) {
@@ -195,14 +230,14 @@ radicchio.suspendTimer = function (timerId) {
 };
 
 /**
-* Starts a new timer with the remaining TTL pulled from the global Redis set
+* Starts a new timer with the remaining TTL in milliseconds pulled from the global Redis set
 * @param {String} timerId - The timer id to be resumed
 * @returns {Promise<Boolean|Error>} - Resolves to true if resumed successfully
 */
 radicchio.resumeTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.resumeTimer(radicchio.setId, timerId, timerId + resumedSuffix, '', function (err, result) {
+      redis.resumeTimer(radicchio.timerSetId, timerId, timerId + resumedSuffix, '', function (err, result) {
         if (err) {
           reject(err);
         } else if (result.toLowerCase() === 'ok') {
@@ -218,16 +253,19 @@ radicchio.resumeTimer = function (timerId) {
 /**
 * Deletes a timer from Redis and the global Redis set
 * @param {String} timerId - The timer id to be deleted
-* @returns {Promise<Boolean|Error>} - Resolves to true if deleted successfully
+* @returns {Promise<Object|Error>} - Resolves to an object containing associated timer data
 */
 radicchio.deleteTimer = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.deleteTimer(radicchio.setId, timerId, function (err, result) {
+      redis.deleteTimer(radicchio.timerSetId, radicchio.dataSetId, timerId, '', function (err, result) {
         if (err) {
           reject(err);
-        } else if (result === 1) {
-          resolve(true);
+        } else if (result !== 'nil') {
+          var data = JSON.parse(result);
+          resolve(data);
+        } else {
+          reject(null);
         }
       });
     } catch (e) {
@@ -237,9 +275,9 @@ radicchio.deleteTimer = function (timerId) {
 };
 
 /**
-* Gets the TTL (time to live) on a timer in Redis
+* Gets the TTL (time to live) in milliseconds on a timer in Redis
 * @param {String} timerId - The timer id get the time left on
-* @returns {Promise<{String, Number}|Error>} - Resolves to an object with the timer id and left in milliseconds
+* @returns {Promise<Object(String, Number)|Error>} - Resolves to an object with the timer id and time left
 */
 radicchio.getTimeLeft = function (timerId) {
   return new _bluebird2.default(function (resolve, reject) {
@@ -264,27 +302,90 @@ radicchio.getTimeLeft = function (timerId) {
 };
 
 /**
-* Gets the TTL (time to live) on all timers in the global Redis set
+* Gets the TTL (time to live) in milliseconds on all timers in the global Redis set
 * Filters out any timers that have no time left or have expired
-* @returns {Promise<Array<{String, Number}>|Error>} - Resolves to an array of objects with a timer id and time left in milliseconds
+* @returns {Promise<Array(Object(String, Number))}>|Error>} - Resolves to an array of objects with a timer id and time left
 */
 radicchio.getAllTimesLeft = function () {
   var promises = [];
 
   return new _bluebird2.default(function (resolve, reject) {
     try {
-      redis.getSetKeys(radicchio.setId, '', function (err, result) {
-        _lodash2.default.map(result, function (timerId) {
-          promises.push(radicchio.getTimeLeft(timerId));
-        });
-
-        _bluebird2.default.all(promises).then(function (timerObjs) {
-          var filtered = _lodash2.default.filter(timerObjs, function (timerObj) {
-            return timerObj !== null && timerObj.timeLeft > 0;
+      redis.getSetKeys(radicchio.timerSetId, '', function (err, result) {
+        if (err) {
+          reject(err);
+        } else {
+          _lodash2.default.map(result, function (timerId) {
+            promises.push(radicchio.getTimeLeft(timerId));
           });
 
-          resolve(filtered);
-        });
+          _bluebird2.default.all(promises).then(function (timerObjs) {
+            var filtered = _lodash2.default.filter(timerObjs, function (timerObj) {
+              return timerObj !== null && timerObj.timeLeft > 0;
+            });
+
+            resolve(filtered);
+          });
+        }
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+/**
+* Gets the data associated with a timer
+* @param {String} timerId - The timer id to get the associated data for
+* @returns {Promise<Object(String, Object)|Error>} - Resolves to an object with the timer id and associated timer data
+*/
+radicchio.getTimerData = function (timerId) {
+  return new _bluebird2.default(function (resolve, reject) {
+    try {
+      redis.getTimerData(radicchio.dataSetId, timerId, function (err, result) {
+        if (err) {
+          reject(err);
+        } else {
+          if (result === 'nil') {
+            reject(null);
+          } else {
+            var data = JSON.parse(result);
+            var timerObj = {
+              timerId: timerId,
+              data: data
+            };
+
+            resolve(timerObj);
+          }
+        }
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+/**
+* Get the data from all active timers (including suspended timers)
+* @returns {Promise<Array<Object(String, Object)>|Error>} - Resolves to an array of objects with a timer id and data object
+*/
+radicchio.getDataFromAllTimers = function () {
+  var promises = [];
+
+  return new _bluebird2.default(function (resolve, reject) {
+    try {
+      redis.getSetKeys(radicchio.dataSetId, '', function (err, result) {
+        if (err) {
+          reject(err);
+        } else {
+          _lodash2.default.map(result, function (timerId) {
+            promises.push(radicchio.getTimerData(timerId));
+          });
+
+          _bluebird2.default.all(promises).then(function (timerDataObjs) {
+            resolve(timerDataObjs);
+          });
+        }
       });
     } catch (e) {
       reject(e);
