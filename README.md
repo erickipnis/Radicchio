@@ -1,4 +1,4 @@
-# Radicchio - Version 1.0.1
+# Radicchio - Version 1.0.2
 A distributed timer written with ES6 syntax and implemented with Redis and Lua scripts.
 
 ## Installation
@@ -14,9 +14,12 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 - Lua scripts provide efficiency and speed for Redis calls
 - Promises for timer functions
 - Starting a new timer with a specified expiration time (in milliseconds)
+- Attach data to a new timer upon start by passing it an object
 - Suspending and Resuming a timer
 - Deleting a timer
 - Listening for a specific type of timer event
+- Get the time remaining or data attached to an active timer
+- Get an array containing all of the active and suspended timers containing their data or time left
 
 ## Types of Events
 - 'expired': triggers when a timer expires in Redis
