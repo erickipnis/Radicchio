@@ -1,6 +1,6 @@
 {
   "name": "radicchio",
-  "version": "1.0.2",
+  "version": "1.1.1",
   "description": "A distributed timer implemented with Redis and Lua",
   "main": "index.js",
   "scripts": {

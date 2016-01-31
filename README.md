@@ -1,4 +1,4 @@
-# Radicchio - Version 1.0.2
+# Radicchio - Version 1.1.0
 A distributed timer written with ES6 syntax and implemented with Redis and Lua scripts.
 
 ## Installation
@@ -65,7 +65,9 @@ Requires Redis version 2.8.0 or later (uses keyspace notifications)
 
 ### Example Usage
 ```
-const radicchio = require('radicchio');
+const radicchio = require('radicchio')(); // Default. Have Redis listen on port 6379
+const radicchio = require('radicchio')(6380); Have Redis listen on port 6380
+const radicchio = require('radicchio')('redis://localhost:6379'); // Have Redis listen on a Redis URL
 
 radicchio.startTimer('10000', {name: 'radicchio'})
 .then((timerId) => {

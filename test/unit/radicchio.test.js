@@ -1,7 +1,7 @@
 require('babel-core/register');
 import chai from 'chai';
 import Promise from 'bluebird';
-import radicchio from '../../src/radicchio';
+const radicchio = require('../../src/radicchio')();
 
 const expect = chai.expect;
 
