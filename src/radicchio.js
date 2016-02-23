@@ -3,7 +3,7 @@ require('babel-core/register');
 import Redis from 'ioredis';
 import fs from 'fs';
 import Promise from 'bluebird';
-import ShortId from 'shortid';
+import uuid from 'node-uuid';
 import eventEmitter from 'event-emitter';
 import _ from 'lodash';
 
@@ -57,7 +57,7 @@ module.exports = function (redisUrl) {
     const EVENT_EXPIRED = '__keyevent@0__:expired';
     const EVENT_EXPIRE = '__keyevent@0__:expire';
 
-    radicchio.globalSetId = ShortId.generate();
+    radicchio.globalSetId = uuid.v4();
 
     radicchio.timerSetId = radicchio.globalSetId + setTTLSuffix;
     radicchio.dataSetId = radicchio.globalSetId + setDataSuffix;
@@ -134,7 +134,7 @@ module.exports = function (redisUrl) {
           }
 
           if (radicchio.timerSetId === null && radicchio.dataSetId === null) {
-            radicchio.globalSetId = ShortId.generate();
+            radicchio.globalSetId = uuid.v4();
             radicchio.timerSetId = radicchio.globalSetId + setTTLSuffix;
             radicchio.dataSetId = radicchio.globalSetId + setDataSuffix;
           }
@@ -163,7 +163,7 @@ module.exports = function (redisUrl) {
   };
 
   /**
-  * Generates an id for a set and a timer using shortid
+  * Generates an id for a set and a timer using RFC4122 UUIDS
   * Tracks the timer key in a Redis set and starts an expire on the timer key
   * @param {String} timeInMS - The timer length in milliseconds
   * @param {Object} data - data object to be associated with the timer
@@ -174,7 +174,7 @@ module.exports = function (redisUrl) {
 
     return new Promise(function (resolve, reject) {
       try {
-        const timerId = ShortId.generate();
+        const timerId = uuid.v4();
         const dataStringified = JSON.stringify(dataObj);
 
         redis.startTimer(radicchio.timerSetId, timerId, radicchio.dataSetId, timeInMS, dataStringified, '', function (err, result) {

@@ -26,7 +26,7 @@
     "event-emitter": "^0.3.4",
     "ioredis": "^1.13.0",
     "lodash": "^3.10.1",
-    "shortid": "^2.2.4",
+    "node-uuid": "^1.4.7",
     "source-map-support": "^0.4.0"
   },
   "devDependencies": {
